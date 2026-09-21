@@ -1,22 +1,40 @@
-import google.generativeai as genai
-from app.core.config import settings
+import os
+from dotenv import load_dotenv
+from google import genai
 
-genai.configure(api_key=settings.gemini_api_key)
+load_dotenv()
 
-def get_embedding(text: str) -> list[float]:
-    """Converts a document chunk into a vector embedding."""
-    result = genai.embed_content(
+api_key = os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    raise ValueError(
+        "GEMINI_API_KEY not found. Check your backend/.env file."
+    )
+
+client = genai.Client(api_key=api_key)
+
+import os
+from google import genai
+
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+
+def get_query_embedding(text):
+    result = client.models.embed_content(
         model="gemini-embedding-001",
-        content=text,
-        task_type="retrieval_document"
+        contents=text
     )
-    return result["embedding"]
 
-def get_query_embedding(text: str) -> list[float]:
-    """Converts a user's question into a vector — different task_type improves relevance."""
-    result = genai.embed_content(
-        model="models/text-embedding-004",
-        content=text,
-        task_type="retrieval_query"
+    return result.embeddings[0].values
+
+
+def get_document_embedding(text):
+    result = client.models.embed_content(
+        model="gemini-embedding-001",
+        contents=text
     )
-    return result["embedding"]
+
+    return result.embeddings[0].values
+
+def get_embedding(text):
+    return get_document_embedding(text)
