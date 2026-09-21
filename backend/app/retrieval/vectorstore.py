@@ -6,6 +6,7 @@ collection = client.get_or_create_collection(name="research_docs")
 
 def add_chunks(chunks: list[str], source_name: str):
     """Embeds and stores chunks in ChromaDB with metadata."""
+    collection.delete(where={"source": source_name})
     ids = [f"{source_name}_{i}" for i in range(len(chunks))]
     embeddings = [get_embedding(chunk) for chunk in chunks]
     metadatas = [{"source": source_name, "chunk_index": i} for i in range(len(chunks))]

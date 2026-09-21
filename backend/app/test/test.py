@@ -1,10 +1,10 @@
-from app.ingestion.loader import load_document
+from app.ingestion.loader import load_documents
 from app.ingestion.chunker import chunk_text
 from app.retrieval.vectorstore import add_chunks, retrieve
 
-text = load_document("data/raw_docs/sample.pdf")
-chunks = chunk_text(text)
-add_chunks(chunks, source_name="sample.pdf")
+for path, text in load_documents("data/raw_docs"):
+    chunks = chunk_text(text)
+    add_chunks(chunks, source_name=path.name)
 
 results = retrieve("what is this document about?", top_k=3)
 for r in results:
