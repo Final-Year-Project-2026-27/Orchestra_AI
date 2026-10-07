@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { User, Lock, Moon, Sun } from "lucide-react";
 
 export default function SettingsPage() {

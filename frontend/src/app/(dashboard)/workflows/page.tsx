@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { TaskExecutionView } from "@/components/TaskExecutionView";
 
 export default function WorkflowsPage() {
@@ -8,7 +9,9 @@ export default function WorkflowsPage() {
         Monitor real-time agent coordination, step-by-step logic, and fact-checking processes.
       </p>
 
-      <TaskExecutionView />
+      <Suspense fallback={<div className="text-slate-500 text-sm">Loading workflow...</div>}>
+        <TaskExecutionView />
+      </Suspense>
     </div>
   );
 }

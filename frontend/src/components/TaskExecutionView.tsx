@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   FileText,
@@ -27,42 +27,89 @@ export function TaskExecutionView() {
   const [plan, setPlan] = useState<string[]>([]);
   const [steps, setSteps] = useState<TraceStepData[]>([]);
   const [report, setReport] = useState<string | null>(null);
-  
-  useEffect(() => {
-    if (!rawQuery) return;
-    startExecution(rawQuery);
-  }, [rawQuery]);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [awaitingApproval, setAwaitingApproval] = useState(false);
 
-  const startExecution = async (promptQuery: string) => {
+  const startExecution = useCallback(async (promptQuery: string) => {
     setIsExecuting(true);
     setPlan([]);
     setSteps([]);
     setReport(null);
-    
+    setAwaitingApproval(false);
+    setThreadId(null);
+
     try {
-      const response = await fetch("http://localhost:8000/api/orchestrate", {
+      const response = await fetch("http://localhost:8000/api/orchestrate/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: promptQuery }),
       });
-      
+
       const reader = response.body?.getReader();
       const decoder = new TextDecoder("utf-8");
 
       while (reader) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value);
         const lines = chunk.split("\n").filter((line) => line.trim() !== "");
-        
+
         for (const line of lines) {
           try {
             const parsed = JSON.parse(line);
-            
+
             if (parsed.type === "plan") {
               setPlan(parsed.data);
-            } else if (parsed.type === "step") {
+            } else if (parsed.type === "awaiting_approval") {
+              setThreadId(parsed.data.thread_id);
+              setAwaitingApproval(true);
+              setIsExecuting(false);
+            }
+          } catch (err) {
+            console.error("Parse err", err, line);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Execution error", error);
+      setIsExecuting(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!rawQuery) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    startExecution(rawQuery);
+  }, [rawQuery, startExecution]);
+
+  const approveAndRun = async () => {
+    if (!threadId) return;
+    setAwaitingApproval(false);
+    setIsExecuting(true);
+
+    try {
+      const response = await fetch("http://localhost:8000/api/orchestrate/resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thread_id: threadId }),
+      });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n").filter((line) => line.trim() !== "");
+
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+
+            if (parsed.type === "step") {
               setSteps((prev) => [...prev, parsed.data]);
             } else if (parsed.type === "report") {
               setReport(parsed.data);
@@ -92,15 +139,19 @@ export function TaskExecutionView() {
              </h2>
           </div>
           <p className="text-slate-500 text-sm ml-5">
-            {isExecuting ? 'Agents are currently orchestrating this workflow...' : 'Execution complete.'}
+            {awaitingApproval
+              ? 'Plan ready — waiting for your approval to continue.'
+              : isExecuting
+              ? 'Agents are currently orchestrating this workflow...'
+              : 'Execution complete.'}
           </p>
         </div>
-        
+
         <div className="flex items-center gap-3 self-start shrink-0">
           <button className="px-4 py-2 rounded-lg border border-[#212638] text-slate-300 hover:text-white transition-colors text-sm font-medium flex items-center gap-2">
             <Pause size={14} /> {isExecuting ? "Pause Executor" : "Resume Executor"}
           </button>
-          <button 
+          <button
             onClick={() => startExecution(query)}
             className="px-4 py-2 rounded-lg bg-indigo-600/10 text-indigo-400 border border-indigo-600/30 hover:bg-indigo-600 hover:text-white transition-colors text-sm font-medium flex items-center gap-2"
           >
@@ -111,18 +162,21 @@ export function TaskExecutionView() {
 
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
-        
+
         {/* Left Column: Trace */}
         <div className="flex flex-col gap-8">
           {/* Research Plan */}
           <div className="bg-[#10131E] border border-[#1e2330] rounded-xl p-5">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold text-slate-200">Generated Research Plan</h3>
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${isExecuting ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/20 text-emerald-500'}`}>
-                {isExecuting ? 'Executing' : 'Approved & Executed'}
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${
+                awaitingApproval ? 'bg-indigo-500/20 text-indigo-400' :
+                isExecuting ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/20 text-emerald-500'
+              }`}>
+                {awaitingApproval ? 'Awaiting Approval' : isExecuting ? 'Executing' : 'Approved & Executed'}
               </span>
             </div>
-            
+
             {plan.length === 0 ? (
               <p className="text-sm text-slate-500 italic">Waiting for agents to draft plan...</p>
             ) : (
@@ -132,11 +186,19 @@ export function TaskExecutionView() {
                 ))}
               </ol>
             )}
-            
+
             <div className="flex gap-3">
               <button disabled className="px-3 py-1.5 rounded bg-[#1A1F2C] border border-[#2A3143] text-xs font-medium text-slate-500 cursor-not-allowed">
                 Edit Plan
               </button>
+              {awaitingApproval && (
+                <button
+                  onClick={approveAndRun}
+                  className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors"
+                >
+                  Approve & Run
+                </button>
+              )}
             </div>
           </div>
 
@@ -144,11 +206,11 @@ export function TaskExecutionView() {
           <div>
             <h3 className="font-semibold text-slate-200 mb-4">Live Agent Execution Trace</h3>
             <div className="relative pl-6 space-y-8 before:absolute before:inset-y-0 before:left-2.5 before:w-px before:bg-[#212638]">
-              
+
               {steps.length === 0 && (
                  <p className="text-sm text-slate-500 italic">No agent actions recorded yet.</p>
               )}
-              
+
               {steps.map((step, idx) => (
                 <TraceStep
                   key={idx}
@@ -161,7 +223,7 @@ export function TaskExecutionView() {
                   description={step.description}
                 />
               ))}
-              
+
               {isExecuting && (
                  <TraceStep
                     status="pending"
@@ -191,7 +253,7 @@ export function TaskExecutionView() {
                 </span>
               )}
             </div>
-            
+
             <div className="p-5 flex-1 overflow-y-auto whitespace-pre-wrap text-sm text-slate-300 leading-relaxed font-mono">
               {!report ? (
                  <div className="flex items-center justify-center h-full text-slate-600">
