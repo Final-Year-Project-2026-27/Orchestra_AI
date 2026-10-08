@@ -64,7 +64,28 @@ async def resume_stream(thread_id: str):
 
     for update in graph.stream(None, config=config, stream_mode="updates"):
         for node_name, node_output in update.items():
-            if node_name == "groundedness_checker":
+
+            if node_name == "contradiction_checker":
+                found = node_output.get("contradictions", [])
+                has_conflicts = len(found) > 0
+                yield sse({
+                    "type": "step",
+                    "data": {
+                        "status": "warning" if has_conflicts else "success",
+                        "title": "Checking for contradictions",
+                        "role": "CONTRADICTION-CHECKER",
+                        "tag": f"{len(found)} Conflict(s) Resolved" if has_conflicts else "No Conflicts",
+                        "tagType": "warning" if has_conflicts else "success",
+                        "description": (
+                            "Found facts that disagree with each other and removed the weaker or unresolvable ones: "
+                            + " | ".join(found)
+                            if has_conflicts else
+                            "No direct contradictions found between verified facts."
+                        ),
+                    },
+                })
+
+            elif node_name == "groundedness_checker":
                 has_warning = node_output.get("has_unverified_claims", False)
                 yield sse({
                     "type": "step",
@@ -75,12 +96,13 @@ async def resume_stream(thread_id: str):
                         "tag": "Unverified Claims Found" if has_warning else "All Claims Verified",
                         "tagType": "warning" if has_warning else "success",
                         "description": (
-                            "Some claims in the report could not be traced to a verified source — flagged inline."
+                            "Some claims in the report could not be traced to a verified source, flagged inline."
                             if has_warning else
                             "Every claim in the report traces back to a verified source."
                         ),
                     },
                 })
+
             else:
                 info = NODE_DISPLAY.get(node_name)
                 if info:
@@ -91,9 +113,12 @@ async def resume_stream(thread_id: str):
                             "tag": info["tag"], "tagType": info["tagType"], "description": info["description"],
                         },
                     })
+
             final_state = node_output
 
-    report_text = final_state.get("flagged_report") or final_state.get("final_report", "") if final_state else ""
+    report_text = ""
+    if final_state:
+        report_text = final_state.get("flagged_report") or final_state.get("final_report", "")
     yield sse({"type": "report", "data": report_text})
     yield sse({"type": "done"})
 

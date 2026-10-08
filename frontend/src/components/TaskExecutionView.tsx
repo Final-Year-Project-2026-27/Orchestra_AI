@@ -247,7 +247,7 @@ export function TaskExecutionView() {
                 <FileText size={16} className="text-indigo-400" />
                 <span className="text-sm font-medium text-slate-200">output.md</span>
               </div>
-              {steps.some(s => s.status === 'warning') && (
+              {steps.some(s => s.status === 'warning' && s.role === 'GROUNDEDNESS-CHECKER') && (
                 <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                   Unverified citations present
                 </span>
