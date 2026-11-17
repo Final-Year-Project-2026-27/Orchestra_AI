@@ -76,3 +76,4 @@ TAVILY_API_KEY=your_key_here
 docker compose up --build
 \```
 
+
