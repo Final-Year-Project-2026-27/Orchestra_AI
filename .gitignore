@@ -11,3 +11,5 @@ frontend/.next/
 
 # General
 .DS_Store
+# Local environment secrets
+/.env

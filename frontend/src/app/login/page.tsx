@@ -13,6 +13,11 @@ export default function LoginPage() {
     router.push("/overview");
   };
 
+  const fillDemoCredentials = () => {
+    setEmail("researcher@orchestra.ai");
+    setPassword("Orchestra2026!");
+  };
+
   return (
     <div className="min-h-screen bg-[#06080C] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -84,17 +89,17 @@ export default function LoginPage() {
             </div>
           </form>
           
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#212638]" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-[#10131E] text-slate-500">
-                  New to Orchestra? <a href="#" className="text-indigo-400 hover:text-indigo-300">Sign up</a>
-                </span>
-              </div>
-            </div>
+          <div className="mt-6 pt-5 border-t border-[#212638] flex items-center justify-between gap-4">
+            <span className="text-xs text-slate-500">
+              Sample workspace: <span className="font-mono text-slate-300">researcher@orchestra.ai</span>
+            </span>
+            <button
+              type="button"
+              onClick={fillDemoCredentials}
+              className="text-xs font-medium text-indigo-400 hover:text-indigo-300 underline underline-offset-2 whitespace-nowrap"
+            >
+              Fill Demo Credentials
+            </button>
           </div>
 
         </div>
