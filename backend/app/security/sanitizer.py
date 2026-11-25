@@ -1,13 +1,13 @@
 import re
 
 INJECTION_PATTERNS = [
-    r"ignore\s+(?:[a-z]+\s+){0,3}instructions",
-    r"disregard\s+(?:[a-z]+\s+){0,3}instructions",
-    r"you are now (a|an)?\s*\w*",
-    r"new system prompt",
-    r"act as (an?|the)\s+\w+",
-    r"new instructions\s*:",
-    r"</?(system|instructions|prompt)>",
+    r"\bignore\s+(?:[a-z]+\s+){0,3}instructions",
+    r"\bdisregard\s+(?:[a-z]+\s+){0,3}instructions",
+    r"^\s*you are now (?:a|an|the)\b",
+    r"\bnew system prompt\b",
+    r"^\s*act as (?:an?|the)\b",
+    r"\bnew instructions\s*:",
+    r"</?(?:system|instructions|prompt)>",
 ]
 
 def sanitize_content(text: str) -> tuple[str, int]:
